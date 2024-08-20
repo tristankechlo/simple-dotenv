@@ -1,0 +1,23 @@
+{
+    "name": "tristankechlo/simple-dotenv",
+    "description": "simple library to parse .env files",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "TK\\Dotenv\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true
+    },
+    "scripts": {
+        "test": "phpunit tests"
+    }
+}
