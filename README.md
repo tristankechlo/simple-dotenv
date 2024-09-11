@@ -77,9 +77,9 @@ these values will be converted to booleans (case insensitive):
 these values will be converted to numbers:  
 - integers (e.g. `3` or `23424`)
 - floats (e.g. `5.76` or `43234.3453`)
-- hexadezimal *only with prexif `0x`* (e.g. `0xa0` to `160`)
-- binary *only with prexif `0b`* (e.g. `0b110011` to `51`)
-- octal *only with prexif `0o`* (e.g. `0o77` to `63`)
+- hexadezimal *only with prefix `0x`* (e.g. `0xa0` to `160`)
+- binary *only with prefix `0b`* (e.g. `0b110011` to `51`)
+- octal *only with prefix `0o`* (e.g. `0o77` to `63`)
 
 ### null
 
