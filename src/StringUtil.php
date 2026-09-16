@@ -28,12 +28,13 @@ class StringUtil
 
     public static function isNumber(string $value): bool
     {
+        $normalized = strtolower($value);
         $isInt = ctype_digit($value);
         $isFloat = is_numeric($value);
-        $isHex = str_starts_with($value, "0x") && ctype_xdigit(str_replace("0x", "", $value));
-        $isBin = str_starts_with($value, "0b") && ctype_xdigit(str_replace("0b", "", $value));
-        $isOct = str_starts_with($value, "0o") && ctype_xdigit(str_replace("0o", "", $value));
-        return $isInt or $isFloat or $isHex or $isBin or $isOct;
+        $isHex = preg_match('/^0x[0-9a-f]+$/i', $normalized) === 1;
+        $isBin = preg_match('/^0b[01]+$/i', $normalized) === 1;
+        $isOct = preg_match('/^0o[0-7]+$/i', $normalized) === 1;
+        return $isInt || $isFloat || $isHex || $isBin || $isOct;
     }
 
     public static function startsWithNumber(string $line): bool
@@ -59,24 +60,26 @@ class StringUtil
 
     public static function getAsNumber(string $value): int|float
     {
-        // decode normal integer
-        if (ctype_digit($value)) {
+        $normalized = strtolower($value);
+
+        // decode normal integer, optionally signed
+        if (preg_match('/^[+-]?\d+$/', $value) === 1) {
             return intval($value);
         }
         if (is_numeric($value)) {
             return floatval($value);
         }
         // decode hexadecimal string e.g. '0xa0' => 160
-        if (str_starts_with($value, "0x") && ctype_xdigit(str_replace("0x", "", $value))) {
-            return hexdec($value);
+        if (preg_match('/^0x[0-9a-f]+$/i', $normalized) === 1) {
+            return hexdec($normalized);
         }
         // decode binary strings e.g. '0b110011' => 51
-        if (str_starts_with($value, "0b") && preg_match("/^[10]+$/", str_replace("0b", "", $value))) {
-            return bindec($value);
+        if (preg_match('/^0b[01]+$/i', $normalized) === 1) {
+            return bindec(substr($normalized, 2));
         }
-        // decode otal strings e.g. '0o77' => 63
-        if (str_starts_with($value, "0o") && preg_match("/^[0-7]+$/", str_replace("0o", "", $value))) {
-            return octdec($value);
+        // decode octal strings e.g. '0o77' => 63
+        if (preg_match('/^0o[0-7]+$/i', $normalized) === 1) {
+            return octdec(substr($normalized, 2));
         }
         throw new \InvalidArgumentException("Value '$value' is not a parsable number.");
     }
