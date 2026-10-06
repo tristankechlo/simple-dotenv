@@ -7,11 +7,7 @@ class Dotenv
 
     public static function parse(string $content, bool $convert = false): array
     {
-        $raw_lines = array_filter(self::splitContent($content), 'strlen');
-        if (empty($raw_lines)) { // .env file has no defined variables
-            return [];
-        }
-        return self::parseContent($raw_lines, $convert);
+        return self::parseContent(self::splitContent($content), $convert);
     }
 
     protected static function splitContent(string $content): array
@@ -26,6 +22,7 @@ class Dotenv
 
         foreach ($raw_lines as $raw_line) {
             $line_number++;
+            $raw_line = preg_replace('/^\xEF\xBB\xBF/', '', $raw_line);
             $line = trim($raw_line);
 
             if (str_starts_with($line, '#') || !$line) { // ignore comments and empty lines
@@ -70,7 +67,7 @@ class Dotenv
     protected static function validateKey(string $key, int $line_number): string
     {
         $key = trim($key);
-        if (!ctype_alnum(str_replace('_', '', $key)) || StringUtil::startsWithNumber($key)) {
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $key)) {
             $message = sprintf("Key can only contain characters [a-zA-Z0-9_] and can't start with a number: %s", $key);
             throw new ParseException($message, $key, $line_number);
         }
@@ -80,21 +77,53 @@ class Dotenv
     protected static function validateValue(string $value, int $line_number): mixed
     {
         $value = trim($value);
-        $value = StringUtil::stripComments($value);
 
         // if is in quoted strings, remove quotes
         if (str_starts_with($value, "\"")) {
-            if (!str_ends_with($value, "\"")) {
+            $quote_position = self::findClosingQuote($value, '"');
+            if ($quote_position === null) {
                 throw new ParseException("Value '$value' started with a double quote that was not closed.", $value, $line_number);
             }
-            $value = substr($value, 1, strlen($value) - 2);
+            $trailing = trim(substr($value, $quote_position + 1));
+            if ($trailing !== '' && !str_starts_with($trailing, '#')) {
+                throw new ParseException("Value '$value' has unexpected content after its closing double quote.", $value, $line_number);
+            }
+            $value = substr($value, 1, $quote_position - 1);
         } elseif (str_starts_with($value, "'")) {
-            if (!str_ends_with($value, "'")) {
+            $quote_position = self::findClosingQuote($value, "'");
+            if ($quote_position === null) {
                 throw new ParseException("Value '$value' started with a single quote that was not closed.", $value, $line_number);
             }
-            $value = substr($value, 1, strlen($value) - 2);
+            $trailing = trim(substr($value, $quote_position + 1));
+            if ($trailing !== '' && !str_starts_with($trailing, '#')) {
+                throw new ParseException("Value '$value' has unexpected content after its closing single quote.", $value, $line_number);
+            }
+            $value = substr($value, 1, $quote_position - 1);
+        } else {
+            $value = StringUtil::stripComments($value);
         }
         return $value;
+    }
+
+    private static function findClosingQuote(string $value, string $quote): ?int
+    {
+        // skip the opening quote and find the first quote that is not escaped.
+        for ($position = 1, $length = strlen($value); $position < $length; $position++) {
+            if ($value[$position] !== $quote) {
+                continue;
+            }
+
+            $backslashes = 0;
+            // a quote is escaped only when preceded by an odd number of backslashes.
+            for ($index = $position - 1; $index >= 0 && $value[$index] === '\\'; $index--) {
+                $backslashes++;
+            }
+            if ($backslashes % 2 === 0) {
+                return $position;
+            }
+        }
+
+        return null;
     }
 
     protected static function tryConvertValue(string $value): mixed
